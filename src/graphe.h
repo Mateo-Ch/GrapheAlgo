@@ -2,12 +2,17 @@
 #ifndef _GRAPHE_H_
 #define _GRAPHE_H_
 
-typedef struct
+typedef struct Sommet Sommet;
+
+struct Sommet
 {
     char* nom;
+    int cout;
 
-    long long couts[];
-} Sommet;
+    // suivant
+    Sommet* suivant;
+    long* couts;
+};
 
 typedef struct
 {
