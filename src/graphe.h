@@ -10,8 +10,8 @@ struct Sommet
     int cout;
 
     // suivant
-    Sommet* suivant;
-    long* couts;
+    int nbSuivants;
+    Sommet** suivants;
 };
 
 typedef struct

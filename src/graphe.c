@@ -7,9 +7,9 @@
 #include <ctype.h>
 #include <string.h>
 
-#define SEPARATEUR_LIGNE "\n"
-#define SEPARATEUR_SOMMETS ";"
-#define SEPARATEUR_DATA ","
+#define SEP_NOEUD      "\n"
+#define SEP_PROPRIETE  ";"
+#define SEP_VOISIN     ","
 
 // FICHIER
 
@@ -26,7 +26,7 @@ char* getContenuFichier( char* fichier )
 {
     FILE *file;
     size_t size;
-    char *text_array;
+    char *texte;
     
     file = fopen(fichier, "r");
 
@@ -37,13 +37,14 @@ char* getContenuFichier( char* fichier )
     }
 
     size = getTailleFichier( file );
-    
-    text_array = malloc(size * sizeof(char) + 1);
-    fread(text_array, 1, size, file);
-    text_array[size] = '\0';
+    texte = malloc(size * sizeof(char) + 1);
+    if (texte == NULL) exit(-1);
+
+    fread(texte, 1, size, file);
+    texte[size] = '\0';
     fclose(file);
     
-    return text_array;
+    return texte;
 }
 
 // GRAPHE
@@ -70,64 +71,173 @@ int* genererTableauCouts( Graphe *graphe, Sommet source )
     return d;
 }
 
-Sommet creerSommet( char* texte )
+// La aussi j'ai chiéééé
+
+// int getNombreChar( char* texte, char c )
+// {
+//     int n = 0;
+
+//     while ( texte != NULL && *texte != '\0' )
+//     {
+//         if ( *texte == c ) { n++; }
+//     }
+    
+//     return n;
+// }
+
+Sommet* getSommetDepuisNom( char* nom, Graphe* graphe )
 {
-    Sommet sommet = {0};
+    for (size_t i = 0; i < graphe->taille; i++)
+    {
+        if ( strcmp(nom, graphe->sommets[i].nom) == 0 )
+        {
+            return &(graphe->sommets[i]);
+        }
+    }
 
-    char *position;
-    char *token = strtok_r(texte, SEPARATEUR_SOMMETS, &position);
-    if ( token == NULL ) { return sommet; }
-
-    // NOM
-    sommet.nom = malloc(strlen(token) + 1);
-    if ( sommet.nom == NULL ) { return sommet; }
-
-    strcpy(sommet.nom, token);
-
-    // COÛT
-    token = strtok_r(NULL, SEPARATEUR_SOMMETS, &position);
-    if ( token == NULL ) { return sommet; }
-
-    sommet.cout = atoi(token);
-
-    return sommet;
+    return NULL;
 }
 
-Graphe creerGraphe( char* texte )
+int getTailleGraphe( char* texte )
 {
-    Graphe graphe = {0};
+    int taille = 0;
+    char* position;
+    char* copie = strdup(texte);
+    char* token = strtok_r(copie, SEP_NOEUD, &position);
+
+    while (token != NULL)
+    {
+        if (strlen(token) > 0) { taille++; }
+        token = strtok_r(NULL, SEP_NOEUD, &position);
+    }
+    
+    free(copie);
+
+    return taille;
+}
+
+void creerSommets( char* texte, Graphe* graphe )
+{
+    char* ligne;
+    char* pos;
     int indice = 0;
 
-    char* position;
-    char* token = strtok_r(texte, SEPARATEUR_LIGNE, &position);
-
-    while ( token != NULL )
-    {
-        graphe.taille++;
-        token = strtok_r(NULL, SEPARATEUR_LIGNE, &position);
-    }
-
-    graphe.sommets = malloc( graphe.taille * sizeof(Sommet) + 1 );
-
-    token = strtok_r(texte, SEPARATEUR_LIGNE, &position);
+    ligne = strtok_r(texte, SEP_NOEUD, &pos);
     
-    while ( token != NULL )
+    while ( ligne != NULL )
     {
-        graphe.sommets[indice++] = creerSommet(token);
-        // graphe.sommets[indice] = creerSommet(token);
-        // printf("%s %d\n", graphe.sommets[indice].nom, indice);
-        // indice++;
-        token = strtok_r(NULL, SEPARATEUR_LIGNE, &position);
+        Sommet sommet = {0};
+        char *token;
+
+        token = strtok(ligne, SEP_PROPRIETE);
+        if ( token == NULL ) { exit(-1); }
+
+        // NOM
+        sommet.nom = strdup( token );
+
+        // COÛT
+        token = strtok(NULL, SEP_PROPRIETE);
+        if ( token != NULL )
+        {
+            sommet.cout = atoi(token);
+        }
+        else
+        {
+            sommet.cout = 0;
+        }
+
+        sommet.nbSuivants = 0;
+        sommet.suivants = NULL;
+
+        graphe->sommets[indice] = sommet;
+
+        // Sommet suivant
+        indice++;
+        ligne = strtok_r(NULL, SEP_NOEUD, &pos);
     }
+}
+
+void lierSommets(char* texte, Graphe* graphe)
+{
+    // J'ai chié dans la fonction là
+
+
+    // char* ligne;
+    // char* save_ligne;
+    
+    // ligne = strtok_r(texte, SEP_NOEUD, &save_ligne);
+    
+    // while (ligne != NULL)
+    // {
+    //     char* txt = strrchr(ligne, ';');
+
+    //     if (txt != NULL)
+    //     {
+    //         txt++;
+
+    //         if (*txt != '\0')
+    //         {
+    //             char* suivant;
+    //             char* save_sommet;
+
+    //             suivant = strtok_r(txt, SEP_VOISIN, &save_sommet);
+
+    //             printf("%d\n", getNombreChar(txt, ',') + 1);
+
+    //             while (suivant != NULL)
+    //             {
+    //                 printf("voisin = %s\n", suivant);
+
+    //                 suivant = strtok_r(NULL, SEP_VOISIN, &save_sommet);
+    //             }
+    //         }
+    //     }
+
+    //     ligne = strtok_r(NULL, SEP_NOEUD, &save_ligne);
+    // }
+}
+
+Graphe creerGrapheDepuisFichier( char* texte )
+{
+    Graphe graphe = {0};
+    char* copie;
+
+    // Taille du graphe
+    graphe.taille = getTailleGraphe( texte );
+    graphe.sommets = malloc( graphe.taille * sizeof(Sommet) );
+
+    // Création des sommets (sans les suivants)
+    copie = strdup( texte );
+    creerSommets( copie, &graphe );
+    free(copie);
+
+    // Création des liens
+    copie = strdup( texte );
+    lierSommets( copie, &graphe );
+    free(copie);
+
+    free(texte);
 
     return graphe;
 }
 
-
 int main()
 {
-    creerGraphe( getContenuFichier( "../res/test.gph" ) );
+    Graphe g = creerGrapheDepuisFichier( getContenuFichier( "./res/test.gph" ) );
 
+    for (int i = 0; i < g.taille; i++)
+    {
+        Sommet* s = &g.sommets[i];
 
+        printf("%s -> ", s->nom);
+
+        for (int j = 0; j < s->nbSuivants; j++)
+        {
+            printf("%s ", s->suivants[j]->nom);
+        }
+
+        printf("\n");
+    }
+    
     return 0;
 }
