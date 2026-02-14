@@ -96,25 +96,29 @@ Sommet creerSommet( char* texte )
 Graphe creerGraphe( char* texte )
 {
     Graphe graphe = {0};
+    int indice = 0;
+
     char* position;
     char* token = strtok_r(texte, SEPARATEUR_LIGNE, &position);
 
     while ( token != NULL )
     {
         graphe.taille++;
-
-        // rien fonctionne vraiment mais en gros
-        /*
-            - tu dois recuppe la taille du graphe
-            - malloc( taille * sizeof(Sommets) + 1 );
-            - tous les foutre a la suite dans le pointeur puis ATTENTION ajouter a la fin \0
-            - Maintenant qu'ils sont creer (les sommets) il faut faire les liens );
-        */
-
         token = strtok_r(NULL, SEPARATEUR_LIGNE, &position);
     }
 
-    free(texte);
+    graphe.sommets = malloc( graphe.taille * sizeof(Sommet) + 1 );
+
+    token = strtok_r(texte, SEPARATEUR_LIGNE, &position);
+    
+    while ( token != NULL )
+    {
+        graphe.sommets[indice++] = creerSommet(token);
+        // graphe.sommets[indice] = creerSommet(token);
+        // printf("%s %d\n", graphe.sommets[indice].nom, indice);
+        // indice++;
+        token = strtok_r(NULL, SEPARATEUR_LIGNE, &position);
+    }
 
     return graphe;
 }
@@ -123,5 +127,7 @@ Graphe creerGraphe( char* texte )
 int main()
 {
     creerGraphe( getContenuFichier( "../res/test.gph" ) );
+
+
     return 0;
 }

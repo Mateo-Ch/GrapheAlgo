@@ -17,7 +17,7 @@ struct Sommet
 typedef struct
 {
     int taille;
-    Sommet sommets[];
+    Sommet* sommets;
 } Graphe;
 
 #endif
