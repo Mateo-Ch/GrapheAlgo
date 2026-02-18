@@ -3,15 +3,21 @@
 #define _GRAPHE_H_
 
 typedef struct Sommet Sommet;
+typedef struct Arete Arete;
+
+struct Arete
+{
+    Sommet* destination;
+    int poids;
+};
 
 struct Sommet
 {
     char* nom;
-    int cout;
-
-    // suivant
+    
+    // Arêtes sortantes
     int nbSuivants;
-    Sommet** suivants;
+    Arete* suivants;
 };
 
 typedef struct
@@ -19,5 +25,10 @@ typedef struct
     int taille;
     Sommet* sommets;
 } Graphe;
+
+typedef struct {
+    char* nom;
+    int poids;
+} VoisinPoids;
 
 #endif
