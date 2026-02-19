@@ -48,7 +48,7 @@ int getTailleGraphe( char* texte )
     return taille;
 }
 
-Sommet* trouverSommet( char *nom, Graphe *graphe )
+Sommet* trouverSommet( Graphe *graphe, char *nom )
 {
     if ( graphe == NULL || strlen(nom) == 0 ) { return NULL; }
 
@@ -130,7 +130,7 @@ void creerArcs(char *lng, Graphe *graphe, int *indexArc) // Ajout du pointeur d'
     char *savePtrLigne;
     
     char *nomDepart = strtok_r(copieLigne, SEP_PROPRIETE, &savePtrLigne);
-    Sommet *sDep = trouverSommet(nomDepart, graphe);
+    Sommet *sDep = trouverSommet(graphe, nomDepart);
     
     char *reste = strtok_r(NULL, "", &savePtrLigne);
     
@@ -141,12 +141,12 @@ void creerArcs(char *lng, Graphe *graphe, int *indexArc) // Ajout du pointeur d'
         
         while (blocVoisin != NULL)
         {
-            char *nomArrivee = strtok(blocVoisin, ":");
-            char *poidsStr = strtok(NULL, ":");
+            char *nomArrivee = strtok(blocVoisin, SEP_VOISIN_COUT);
+            char *poidsStr = strtok(NULL, SEP_VOISIN_COUT);
             
             if (nomArrivee && poidsStr)
             {
-                Sommet *sArr = trouverSommet(nomArrivee, graphe);
+                Sommet *sArr = trouverSommet(graphe, nomArrivee);
                 int cout = atoi(poidsStr);
                 
                 if (sArr != NULL)
@@ -185,7 +185,7 @@ Graphe* creerGraphe( char *txt )
         {
             graphe->sommets[indice++] = creerSommet( ligne );
         }
-        nbArcs += compterNbChar( ligne, SEP_VOISIN_COUT );
+        nbArcs += compterNbChar( ligne, SEP_VOISIN_COUT[0] );
         ligne = strtok_r( NULL, SEP_LIGNE, &position );
     }
 

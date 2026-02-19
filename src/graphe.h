@@ -5,7 +5,7 @@
 #define SEP_LIGNE       "\n"
 #define SEP_PROPRIETE   ";"
 #define SEP_VOISIN      ","
-#define SEP_VOISIN_COUT ':'
+#define SEP_VOISIN_COUT ":"
 
 typedef struct
 {
@@ -27,6 +27,8 @@ typedef struct
     Sommet **sommets;
     Arc **arcs;
 } Graphe;
+
+Sommet* trouverSommet( Graphe *graphe, char *nom );
 
 // Création de graphes
 Graphe* creerGraphe( char *txt );
