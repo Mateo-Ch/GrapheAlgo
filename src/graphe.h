@@ -2,33 +2,36 @@
 #ifndef _GRAPHE_H_
 #define _GRAPHE_H_
 
-typedef struct Sommet Sommet;
-typedef struct Arete Arete;
-
-struct Arete
-{
-    Sommet* destination;
-    int poids;
-};
-
-struct Sommet
-{
-    char* nom;
-    
-    // Arêtes sortantes
-    int nbSuivants;
-    Arete* suivants;
-};
+#define SEP_LIGNE       "\n"
+#define SEP_PROPRIETE   ";"
+#define SEP_VOISIN      ","
+#define SEP_VOISIN_COUT ':'
 
 typedef struct
 {
-    int taille;
-    Sommet* sommets;
+    char* nom;
+} Sommet;
+
+typedef struct
+{
+    int cout;
+    Sommet *sDep;
+    Sommet *sArr;
+} Arc;
+
+typedef struct
+{
+    int nbElements;
+    int nbArcs;
+
+    Sommet **sommets;
+    Arc **arcs;
 } Graphe;
 
-typedef struct {
-    char* nom;
-    int poids;
-} VoisinPoids;
+// Création de graphes
+Graphe* creerGraphe( char *txt );
+
+// Résolution de graphes
+int* genererTableauCouts( Graphe *graphe, Sommet *source );
 
 #endif

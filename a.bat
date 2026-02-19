@@ -1,1 +1,0 @@
-gcc -Wall .\src\graphe.c -o .\bin\graphe.exe && .\bin\graphe.exe

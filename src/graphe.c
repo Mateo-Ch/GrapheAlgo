@@ -1,310 +1,226 @@
-#include "graphe.h"
-
-#include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
-#include <ctype.h>
 #include <string.h>
 
-#define SEP_NOEUD      "\n"
-#define SEP_PROPRIETE  ";"
-#define SEP_VOISIN     ","
+#include "graphe.h"
+#include "utils.h"
 
-// FICHIER
+// Utile pour resoudre des graphes
 
-char* getContenuFichier( char* fichier )
+int* genererTableauCouts( Graphe *graphe, Sommet *source )
 {
-    FILE *file = fopen(fichier, "r");
-
-    if (file == NULL)
-    {
-        printf("Erreur lors de l'ouverture du fichier: %s\n", fichier);
-        exit(-1);
-    }
-
-    fseek(file, 0, SEEK_END);
-    long size = ftell(file);
-    rewind(file);
-
-    char *texte = malloc(size * sizeof(char) + 1);
-    if (texte == NULL)
-    {
-        fclose(file);
-        exit(-1);
-    }
-
-    fread(texte, 1, size, file);
-    for (long i = 0; i < size; i++)
-    {
-        if (texte[i] == '\r') texte[i] = '\n';
-    }
-    texte[size] = '\0';
-
-    fclose(file);
-    return texte;
-}
-
-// GRAPHE
-
-void detruireGraphe( Graphe* g )
-{
-    if ( g == NULL ) return;
-
-    for (int i = 0; i < g->taille; i++)
-    {
-        free(g->sommets[i].nom);
-        free(g->sommets[i].suivants); 
-    }
+    int *d;
     
-    free(g->sommets);
-}
+    d = malloc( graphe->nbElements * sizeof(int) );
+    if ( d == NULL ) { return NULL; }
 
-int compterNbChar( char c, char* ligne )
-{
-    if ( !ligne ) { return 0; }
-
-    int nbr = 0;
-    int len = strlen(ligne);
-
-    for (int i=0; i < len; i++)
+    for ( int i = 0; i < graphe->nbElements; i++ )
     {
-        if ( ligne[i] == c )
+        if ( strcmp( graphe->sommets[i]->nom, source->nom ) == 0 )
         {
-            nbr++;
+            d[i] = 0;
         }
-    }
-
-    return nbr;
-}
-
-
-char* getNomSommetDansLigne( char* l )
-{
-    if ( l == NULL || strlen(l) == 0 ) { return NULL; }
-    
-    char* copie = strdup( l );
-
-    char* tmp = strtok( copie, SEP_PROPRIETE );
-    if ( tmp == NULL )
-    {
-        free(copie);
-        return NULL;
-    }
-
-    char* nom = strdup( tmp );
-    
-    free(copie);
-    return nom;
-}
-
-VoisinPoids* getListeAretesDansLigne(char* l, int* nbAretes)
-{
-    if ( l == NULL || nbAretes == NULL ) return NULL;
-    
-    *nbAretes = 0;
-    char* copie = strdup(l);
-    
-    int nbPointsVirgules = compterNbChar(';', copie);
-    if (nbPointsVirgules == 0) {
-        free(copie);
-        return NULL;
-    }
-    
-    VoisinPoids* listeAretes = malloc(nbPointsVirgules * sizeof(VoisinPoids));
-    if (listeAretes == NULL) {
-        free(copie);
-        return NULL;
-    }
-    
-    char* saveptr;
-    char* token = strtok_r(copie, SEP_PROPRIETE, &saveptr);
-    
-    token = strtok_r(NULL, SEP_PROPRIETE, &saveptr);
-    
-    int index = 0;
-    while (token != NULL)
-    {
-        while (*token && isspace((unsigned char)*token)) token++;
-        
-        if (*token == '\0') {
-            break;
-        }
-        
-        char* virgule = strchr(token, ',');
-        if (virgule != NULL)
+        else
         {
-            *virgule = '\0';
-            char* nomVoisin = token;
-            char* poidsStr = virgule + 1;
-            
-            listeAretes[index].nom = strdup(nomVoisin);
-            listeAretes[index].poids = atoi(poidsStr);
-            index++;
-        }
-        
-        token = strtok_r(NULL, SEP_PROPRIETE, &saveptr);
-    }
-    
-    *nbAretes = index;
-    free(copie);
-    
-    if (index == 0) {
-        free(listeAretes);
-        return NULL;
-    }
-    
-    return listeAretes;
-}
-
-Sommet* getSommetDepuisNom( char* nom, Graphe* graphe )
-{
-    for (size_t i = 0; i < graphe->taille; i++)
-    {
-        if ( strcmp(nom, graphe->sommets[i].nom) == 0 )
-        {
-            return &(graphe->sommets[i]);
+            d[i] = INT_MAX;
         }
     }
 
-    return NULL;
+    return d;
 }
+
+// Utile pour les graphes
 
 int getTailleGraphe( char* texte )
 {
     int taille = 0;
     char* position;
     char* copie = strdup(texte);
-    char* token = strtok_r(copie, SEP_NOEUD, &position);
+    char* token = strtok_r(copie, SEP_LIGNE, &position);
 
     while (token != NULL)
     {
         if (strlen(token) > 0) { taille++; }
-        token = strtok_r(NULL, SEP_NOEUD, &position);
+        token = strtok_r(NULL, SEP_LIGNE, &position);
     }
     
     free(copie);
-
     return taille;
 }
 
-void creerSommets( char* txt, Graphe* graphe )
+Sommet* trouverSommet( char *nom, Graphe *graphe )
 {
-    char* texte = strdup(txt);
-    char* ligne;
-    char* position;
-    int indice = 0;
+    if ( graphe == NULL || strlen(nom) == 0 ) { return NULL; }
 
-    ligne = strtok_r(texte, SEP_NOEUD, &position);
-    
-    while ( ligne != NULL )
+    for (int i = 0; i < graphe->nbElements; i++)
     {
-        Sommet sommet = {0};
-
-        sommet.nom = getNomSommetDansLigne( ligne );
-        
-        sommet.nbSuivants = 0;
-        sommet.suivants = NULL;
-
-        graphe->sommets[indice] = sommet;
-        // Sommet suivant
-        indice++;
-        ligne = strtok_r(NULL, SEP_NOEUD, &position);
-    }
-
-    free(texte);
-}
-
-void relierSommets(char* txt, Graphe* graphe)
-{
-    char* texte = strdup(txt);
-    char* save_ligne;
-    char* ligne = strtok_r(texte, SEP_NOEUD, &save_ligne);
-    
-    while ( ligne != NULL )
-    {
-        char* nomSommet = getNomSommetDansLigne(ligne);
-        Sommet* sommet = getSommetDepuisNom(nomSommet, graphe);
-        free(nomSommet);
-
-        if ( sommet != NULL )
+        if ( strcmp( graphe->sommets[i]->nom, nom ) == 0 )
         {
-          int nbAretes = 0;
-            VoisinPoids* listeAretes = getListeAretesDansLigne(ligne, &nbAretes);
-            
-            if ( listeAretes != NULL )
-            {
-                sommet->nbSuivants = nbAretes;
-                sommet->suivants = malloc(nbAretes * sizeof(Arete)); 
-                
-                for (int i = 0; i < nbAretes; i++)
-                {
-                    Sommet* voisin = getSommetDepuisNom(listeAretes[i].nom, graphe);
-                    
-                    if (voisin == NULL)
-                    {
-                        printf("Voisin inconnu: %s\n", listeAretes[i].nom);
-                    }
-                    else
-                    {
-                        sommet->suivants[i].destination = voisin; 
-                        sommet->suivants[i].poids = listeAretes[i].poids; 
-                    }
-                    
-                    free(listeAretes[i].nom);
-                }
-                
-                free(listeAretes);
-            }
+            return graphe->sommets[i];
         }
-
-        ligne = strtok_r(NULL, SEP_NOEUD, &save_ligne);
     }
-    
-    free(texte);
+
+    return NULL;
 }
 
-Graphe creerGrapheDepuisFichier( char* texte )
+void afficherGraphe( Graphe *graphe )
 {
-    Graphe graphe = {0};
+    printf("GRAPHE, %d sommet(s)\n", graphe->nbElements);
+    for (int i = 0; i < graphe->nbElements; i++)
+    {
+        printf("\tSOMMET: %s\n", graphe->sommets[i]->nom);
+    }
 
-    // Taille du graphe
-    graphe.taille = getTailleGraphe( texte );
-    graphe.sommets = malloc( graphe.taille * sizeof(Sommet) );
+    printf("Liens : %d\n", graphe->nbArcs);
+    for (int i = 0; i < graphe->nbArcs; i++)
+    {
+        printf("\tLIEN: (%s) --[%d]-> (%s)\n", graphe->arcs[i]->sDep->nom, graphe->arcs[i]->cout, graphe->arcs[i]->sArr->nom);
+    }
+}
+
+void detruireGraphe( Graphe *graphe )
+{
+    for (int i = 0; i < graphe->nbElements; i++)
+    {
+        free(graphe->sommets[i]->nom);
+        free(graphe->sommets[i]);
+    }
+
+    for (int i = 0; i < graphe->nbArcs; i++)
+    {
+        free(graphe->arcs[i]);
+    }
+
+    free(graphe->sommets);
+    free(graphe->arcs);
+    free(graphe);
+}
+
+// Création de GRAPHE
+
+Sommet* creerSommet( char *txt )
+{
+    if ( strlen(txt) == 0 || txt == NULL )
+    {
+        return NULL;
+    }
+
+    Sommet *sommet = (Sommet*) malloc(sizeof(Sommet));
+    char *copieLigne = strdup(txt);
+    char *nom = strtok(copieLigne, SEP_PROPRIETE);
     
-    creerSommets( texte, &graphe ); // Création des sommets (sans les suivants)
-    relierSommets( texte, &graphe ); // Création des liens
+    if (nom)
+    {
+        sommet->nom = strdup(nom);
+    }
+    else
+    {
+        sommet->nom = strdup("Inconnu");
+    }
+    
+    free(copieLigne);
+    return sommet;
+}
+
+void creerArcs(char *lng, Graphe *graphe, int *indexArc) // Ajout du pointeur d'index
+{
+    if (graphe == NULL || lng == NULL) { return; }
+
+    char *copieLigne = strdup(lng);
+    char *savePtrLigne;
+    
+    char *nomDepart = strtok_r(copieLigne, SEP_PROPRIETE, &savePtrLigne);
+    Sommet *sDep = trouverSommet(nomDepart, graphe);
+    
+    char *reste = strtok_r(NULL, "", &savePtrLigne);
+    
+    if (sDep != NULL && reste != NULL)
+    {
+        char *savePtrVoisin;
+        char *blocVoisin = strtok_r(reste, SEP_VOISIN, &savePtrVoisin);
+        
+        while (blocVoisin != NULL)
+        {
+            char *nomArrivee = strtok(blocVoisin, ":");
+            char *poidsStr = strtok(NULL, ":");
+            
+            if (nomArrivee && poidsStr)
+            {
+                Sommet *sArr = trouverSommet(nomArrivee, graphe);
+                int cout = atoi(poidsStr);
+                
+                if (sArr != NULL)
+                {
+                    Arc *nouvelArc = (Arc*) malloc(sizeof(Arc));
+                    nouvelArc->sDep = sDep;
+                    nouvelArc->sArr = sArr;
+                    nouvelArc->cout = cout;
+                    
+                    graphe->arcs[*indexArc] = nouvelArc;
+                    (*indexArc)++;
+                }
+            }
+            blocVoisin = strtok_r(NULL, SEP_VOISIN, &savePtrVoisin);
+        }
+    }
+    free(copieLigne);
+}
+
+Graphe* creerGraphe( char *txt )
+{
+    char *position;
+    int indice = 0;
+    int nbArcs = 0;
+    char *texte = strdup( txt );
+    int tailleGraphe = getTailleGraphe( texte );
+    char *ligne = strtok_r( texte, SEP_LIGNE, &position );
+
+    Graphe *graphe = (Graphe*) malloc(sizeof(Graphe));
+    graphe->nbElements = tailleGraphe;
+    graphe->sommets = (Sommet**) malloc( graphe->nbElements * sizeof(Sommet*) );
+
+    while ( ligne != NULL )
+    {
+        if ( strlen(ligne) > 0 )
+        {
+            graphe->sommets[indice++] = creerSommet( ligne );
+        }
+        nbArcs += compterNbChar( ligne, SEP_VOISIN_COUT );
+        ligne = strtok_r( NULL, SEP_LIGNE, &position );
+    }
+
+    graphe->nbArcs = nbArcs;
+    graphe->arcs = (Arc**) malloc(graphe->nbArcs * sizeof(Arc*) );
+    if ( graphe->arcs == NULL ) { return NULL; }
 
     free(texte);
+    texte = strdup( txt );
+    ligne = strtok_r( texte, SEP_LIGNE, &position );
+
+    int arcCourant = 0;
+    while ( ligne != NULL )
+    {
+        creerArcs( ligne, graphe, &arcCourant ); 
+        ligne = strtok_r( NULL, SEP_LIGNE, &position );
+    }
+
+    free( texte );
     return graphe;
 }
 
-int main()
+// MAIN
+
+int main( int argc, char *argv[] )
 {
-    Graphe g = creerGrapheDepuisFichier( getContenuFichier( "./res/test.gph" ) );
+    if ( argc != 2 ) { return -1; }
 
-    for (int i = 0; i < g.taille; i++)
-    {
-        Sommet* s = &g.sommets[i];
-        printf("%s -> ", s->nom);
+    char *texte = getContenuFichier( argv[1] );
+    if ( texte == NULL ) { return -1; }
 
-        for (int j = 0; j < s->nbSuivants; j++)
-        {
-            Arete* arete = &s->suivants[j]; 
-            
-            if (arete->destination != NULL) 
-            {
-                printf("%s(%d) ", arete->destination->nom, arete->poids); 
-            }
-            else
-            {
-                printf("?!");
-            }
-        }
+    Graphe *graphe = creerGraphe( texte );
 
-        printf("\n");
-    }
-
-    detruireGraphe( &g );
+    free(texte);
+    detruireGraphe(graphe);
+    
     return 0;
 }
