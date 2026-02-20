@@ -4,5 +4,6 @@
 #include "graphe.h"
 
 void bellmanFord( Graphe *graphe, Sommet *source );
+void dijkstra( Graphe *graphe, Sommet *source );
 
 #endif

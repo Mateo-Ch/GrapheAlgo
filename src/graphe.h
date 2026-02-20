@@ -30,10 +30,12 @@ typedef struct
 
 Sommet* trouverSommet( Graphe *graphe, char *nom );
 
-// Création de graphes
+int trouverIndexSommet( Graphe *graphe, Sommet *sommet );
+
 Graphe* creerGraphe( char *txt );
 
-// Résolution de graphes
-int* genererTableauCouts( Graphe *graphe, Sommet *source );
+char* getContenuFichier( char* fichier );
+
+void detruireGraphe( Graphe *graphe );
 
 #endif

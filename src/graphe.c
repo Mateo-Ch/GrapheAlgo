@@ -3,33 +3,66 @@
 #include <string.h>
 
 #include "graphe.h"
-#include "utils.h"
 
-// Utile pour resoudre des graphes
-
-int* genererTableauCouts( Graphe *graphe, Sommet *source )
+int compterNbChar( char* ligne, char c )
 {
-    int *d;
-    
-    d = malloc( graphe->nbElements * sizeof(int) );
-    if ( d == NULL ) { return NULL; }
+    if ( !ligne ) { return 0; }
 
-    for ( int i = 0; i < graphe->nbElements; i++ )
+    int nbr = 0;
+    int len = strlen(ligne);
+
+    for (int i=0; i < len; i++)
     {
-        if ( strcmp( graphe->sommets[i]->nom, source->nom ) == 0 )
+        if ( ligne[i] == c )
         {
-            d[i] = 0;
-        }
-        else
-        {
-            d[i] = INT_MAX;
+            nbr++;
         }
     }
 
-    return d;
+    return nbr;
+}
+
+char* getContenuFichier( char* fichier )
+{
+    FILE *file = fopen(fichier, "r");
+
+    if (file == NULL)
+    {
+        printf("Erreur lors de l'ouverture du fichier: %s\n", fichier);
+        exit(-1);
+    }
+
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    rewind(file);
+
+    char *texte = malloc(size * sizeof(char) + 1);
+    if (texte == NULL)
+    {
+        fclose(file);
+        exit(-1);
+    }
+
+    int tailleLus = fread(texte, 1, size, file);
+    texte[tailleLus] = '\0';
+
+    fclose(file);
+    return texte;
 }
 
 // Utile pour les graphes
+
+int trouverIndexSommet( Graphe *graphe, Sommet *sommet )
+{
+    for (int i = 0; i < graphe->nbElements; i++)
+    {
+        if ( graphe->sommets[i] == sommet )
+        {
+            return i;
+        }
+    }
+    return -1;
+}
 
 int getTailleGraphe( char* texte )
 {
@@ -122,7 +155,7 @@ Sommet* creerSommet( char *txt )
     return sommet;
 }
 
-void creerArcs(char *lng, Graphe *graphe, int *indexArc) // Ajout du pointeur d'index
+void creerArcs(char *lng, Graphe *graphe, int *indexArc)
 {
     if (graphe == NULL || lng == NULL) { return; }
 
@@ -206,21 +239,4 @@ Graphe* creerGraphe( char *txt )
 
     free( texte );
     return graphe;
-}
-
-// MAIN
-
-int main( int argc, char *argv[] )
-{
-    if ( argc != 2 ) { return -1; }
-
-    char *texte = getContenuFichier( argv[1] );
-    if ( texte == NULL ) { return -1; }
-
-    Graphe *graphe = creerGraphe( texte );
-
-    free(texte);
-    detruireGraphe(graphe);
-    
-    return 0;
 }
