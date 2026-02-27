@@ -13,7 +13,7 @@ typedef struct
 
 typedef struct
 {
-    Cercle cercle;
+    Cercle *cercle;
     char *texte;
 } Noeud;
 
@@ -25,8 +25,15 @@ typedef struct // J'ai pas mis d'épaisseur
     char *texte;
 } Fleche;
 
-void creerFenetre();
-void activerFenetre();
-void freeFenetre();
+typedef struct
+{
+    int nbNoeuds;
+    int nbFleches;
+
+    Noeud **noeuds;
+    Fleche **fleches;
+} GrapheGUI;
+
+void creerGUI();
 
 #endif

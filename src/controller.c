@@ -15,9 +15,8 @@ int main( int argc, char *argv[] )
     Graphe *graphe = creerGraphe( texte );
     // Sommet *source = trouverSommet( graphe, "A" );
 
-    creerFenetre(graphe);
-    activerFenetre();
-    freeFenetre();
+    // ptet trouver de meilleurs nom poru les fonctions heinnnn
+    creerGUI(graphe);
 
     free(texte);
     detruireGraphe(graphe);
