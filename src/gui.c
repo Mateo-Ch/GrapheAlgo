@@ -163,6 +163,20 @@ void dessinerFleche( Fleche *fleche )
 
 // SIMULATION
 
+void testDeCollisions( const GrapheGUI *graphe )
+{
+    Vector2 mousePos;
+    for (int i = 0; i < graphe->nbNoeuds; i++)
+    {
+        mousePos = GetMousePosition();
+        if ( CheckCollisionPointCircle( mousePos, graphe->noeuds[i]->position, graphe->noeuds[i]->cercle->rayon ) && IsMouseButtonDown(MOUSE_LEFT_BUTTON) )
+        {
+            graphe->noeuds[i]->position = mousePos;
+            return;
+        }
+    }
+}
+
 void simulation( const GrapheGUI *graphe )
 {
     for (int i = 0; i < graphe->nbNoeuds; i++)
@@ -202,7 +216,7 @@ void activerGUI( const GrapheGUI *graphe )
         ClearBackground( LIGHTGRAY );
 
         simulation( graphe );
-
+        testDeCollisions( graphe );
         
         for (int i = 0; i < graphe->nbFleches; i++)
         {
