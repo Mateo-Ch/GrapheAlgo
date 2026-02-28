@@ -6,7 +6,6 @@
 
 typedef struct
 {
-    Vector2 position;
     Color couleur;
     float rayon;
 } Cercle;
@@ -14,6 +13,8 @@ typedef struct
 typedef struct
 {
     Cercle *cercle;
+    Vector2 position;
+    Vector2 velocite;
     char *texte;
 } Noeud;
 

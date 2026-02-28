@@ -15,11 +15,15 @@
 
 #define TARGET_FPS 60
 
-#define RAYON_PAR_DEFAUT 10.0f
+#define TAILLE_POLICE 20
 
-#define TAILLE_POLICE 14
+#define RAYON_PAR_DEFAUT 25.0f
 
-#define DISTANCE_NOEUD 75.0f
+#define EPAISSEUR_FLECHES 3.0f
+
+#define DISTANCE_NOEUD 250.0f
+
+#define K 0.03f
 
 // GRAPHE
 
@@ -41,33 +45,38 @@ Noeud* sommetToNoeud( const Sommet *sommet )
     noeud->cercle = (Cercle*) malloc( sizeof( Cercle ) );
 
     noeud->texte = strdup( sommet->nom );
-
-    noeud->cercle->couleur = LIME;
+    noeud->position = (Vector2) {GetRandomValue(100, 1000), GetRandomValue(100, 1000)}; // j'ai pas mieux { 0, 0 } marche pas
+    noeud->velocite = Vector2Zero();
+    
+    noeud->cercle->couleur = WHITE;
     noeud->cercle->rayon = RAYON_PAR_DEFAUT;
-    noeud->cercle->position = (Vector2) {GetRandomValue(100, 1000), GetRandomValue(100, 1000)};
 
     return noeud;
 }
 
-// a revoir
-Fleche* arcToFleche( const Arc *arc, const GrapheGUI *graphe )
+Fleche* arcToFleche(const Arc *arc, const GrapheGUI *graphe)
 {
-    Fleche *fleche = (Fleche*) malloc( sizeof(Fleche) );
-    fleche->texte = malloc( 6 * sizeof(char) );
+    Fleche *fleche = (Fleche*) malloc(sizeof(Fleche));
 
-    itoa(arc->cout, fleche->texte, 10);
-    // int resultat = sprintf(fleche->texte, "%d", arc->cout);
-    // if ( resultat < 0 )
-    // {
-    //     fleche->texte = "0";
-    // }
+    int len = snprintf(NULL, 0, "%d", arc->cout);
+    
+    fleche->texte = (char*) malloc(len + 1);
 
-    Noeud *dep = trouverNoeud( arc->sDep->nom, graphe );
-    Noeud *arr = trouverNoeud( arc->sArr->nom, graphe );
-    if ( !dep || !arr ) { return NULL; }
+    if ( fleche->texte )
+    {
+        snprintf(fleche->texte, len + 1, "%d", arc->cout);
+    }
 
-    fleche->depart = dep;
-    fleche->arrive = arr;
+    fleche->depart = trouverNoeud(arc->sDep->nom, graphe);
+    fleche->arrive = trouverNoeud(arc->sArr->nom, graphe);
+
+    if ( !fleche->depart || !fleche->arrive )
+    {
+        free(fleche->texte);
+        free(fleche);
+        return NULL;
+    }
+
     fleche->couleur = BLACK;
 
     return fleche;
@@ -93,32 +102,87 @@ GrapheGUI* creerGrapheVirtuel( const Graphe *graphe )
 
 void dessinerNoeud( Noeud *noeud )
 {
-    DrawCircleV( noeud->cercle->position, noeud->cercle->rayon, noeud->cercle->couleur );
-    DrawCircleLinesV( noeud->cercle->position, noeud->cercle->rayon, BLACK );
-    DrawText( noeud->texte, noeud->cercle->position.x, noeud->cercle->position.y, TAILLE_POLICE, BLACK );
+    DrawCircleV( noeud->position, noeud->cercle->rayon, noeud->cercle->couleur );
+    DrawCircleLinesV( noeud->position, noeud->cercle->rayon, BLACK );
+
+    int largeurTexte = MeasureText(noeud->texte, TAILLE_POLICE);
+
+    float posX = noeud->position.x - (largeurTexte / 2.0f);
+    float posY = noeud->position.y - (TAILLE_POLICE / 2.0f);
+
+    DrawText( noeud->texte, (int)posX, (int)posY, TAILLE_POLICE, BLACK );
+}
+
+void dessinerTeteFleche(Fleche *fleche)
+{
+    Vector2 start = fleche->depart->position;
+    Vector2 end   = fleche->arrive->position;
+
+    float longueurTete = 15.0f;   
+    float largeurTete  = 8.0f;   
+    float rayonNoeud   = fleche->arrive->cercle->rayon;
+
+    // 1. Direction normalisée
+    Vector2 dir = Vector2Subtract(end, start);
+    float distance = Vector2Length(dir);
+    
+    // Sécurité pour éviter la division par zéro si les nœuds sont superposés
+    if (distance > 0) dir = Vector2Scale(dir, 1.0f / distance);
+    else return;
+
+    // 2. Calculer la pointe (p1) au bord du cercle de destination
+    Vector2 p1 = Vector2Subtract(end, Vector2Scale(dir, rayonNoeud));
+
+    // 3. Vecteur perpendiculaire pour la largeur
+    Vector2 perp = (Vector2){ -dir.y, dir.x };
+
+    // 4. Base du triangle (en arrière de la pointe p1)
+    Vector2 base = Vector2Subtract(p1, Vector2Scale(dir, longueurTete));
+
+    // 5. Coins de la base
+    Vector2 p2 = Vector2Add(base, Vector2Scale(perp, largeurTete));
+    Vector2 p3 = Vector2Subtract(base, Vector2Scale(perp, largeurTete));
+
+    // IMPORTANT : L'ordre p1, p3, p2 assure souvent un meilleur rendu (Sens anti-horaire)
+    DrawTriangle(p1, p3, p2, BLACK);
 }
 
 void dessinerFleche( Fleche *fleche )
 {
-    DrawLineV( fleche->depart->cercle->position, fleche->arrive->cercle->position, BLACK );
+    Vector2 start = fleche->depart->position;
+    Vector2 end   = fleche->arrive->position;
+    Vector2 dir   = Vector2Normalize(Vector2Subtract(end, start));
+    
+    // On arrête la ligne là où la tête de flèche commence (base)
+    float offsetBase = fleche->arrive->cercle->rayon + 15.0f; // rayon + longueurTete
+    Vector2 ligneFin = Vector2Subtract(end, Vector2Scale(dir, offsetBase));
+
+    DrawLineEx( start, ligneFin, EPAISSEUR_FLECHES, BLACK );
+    dessinerTeteFleche( fleche );
 }
 
 // SIMULATION
 
 void simulation( const GrapheGUI *graphe )
 {
-    for (int i = 0; i < graphe->nbFleches; i++)
+    for (int i = 0; i < graphe->nbNoeuds; i++)
     {
-        float k = 0.01;
-        Noeud *noeudDepart = graphe->fleches[i]->depart;
-        Noeud *noeudArrive = graphe->fleches[i]->arrive;
+        for (int j = 0; j < graphe->nbNoeuds; j++)
+        {
+            if (i == j) continue;
+            Noeud *noeudDepart = graphe->noeuds[i];
+            Noeud *noeudArrive = graphe->noeuds[j];
+    
+            Vector2 vDirection = Vector2Subtract(noeudDepart->position, noeudArrive->position);
+            float vDirLength = Vector2Length( vDirection ) - DISTANCE_NOEUD;
+            Vector2 force = Vector2Normalize( vDirection );
+            force = Vector2Scale( force, -K * vDirLength );
 
-        Vector2 vDirection = Vector2Subtract(noeudDepart->cercle->position, noeudArrive->cercle->position);
-        float vDirLength = Vector2Length( vDirection ) - DISTANCE_NOEUD;
-        Vector2 force = Vector2Normalize( vDirection );
-        force = Vector2Scale( force, -k * vDirLength );
-        //printf("%f : %f | length %f\n", force.x, force.y, vDirLength);
-        noeudDepart->cercle->position = Vector2Add( noeudDepart->cercle->position, force );
+            noeudDepart->position = Vector2Add( noeudDepart->position, force );
+
+            noeudDepart->position.x = Clamp(noeudDepart->position.x, RAYON_PAR_DEFAUT, GetScreenWidth() - RAYON_PAR_DEFAUT);
+            noeudDepart->position.y = Clamp(noeudDepart->position.y, RAYON_PAR_DEFAUT, GetScreenHeight() - RAYON_PAR_DEFAUT);
+        }
     }
 }
 
@@ -126,7 +190,6 @@ void simulation( const GrapheGUI *graphe )
 
 void freeGUI()
 {
-    // Free les structures
     CloseWindow();
 }
 
@@ -139,15 +202,16 @@ void activerGUI( const GrapheGUI *graphe )
         ClearBackground( LIGHTGRAY );
 
         simulation( graphe );
-        
-        for (int i = 0; i < graphe->nbNoeuds; i++)
-        {
-            dessinerNoeud( graphe->noeuds[i] );
-        }
+
         
         for (int i = 0; i < graphe->nbFleches; i++)
         {
             dessinerFleche( graphe->fleches[i] );
+        }
+
+        for (int i = 0; i < graphe->nbNoeuds; i++)
+        {
+            dessinerNoeud( graphe->noeuds[i] );
         }
 
         EndDrawing();
@@ -158,6 +222,8 @@ void activerGUI( const GrapheGUI *graphe )
 
 void creerGUI( const Graphe *gph )
 {
+    // SetConfigFlags( FLAG_MSAA_4X_HINT );
+
     InitWindow( WIDTH, HEIGHT, TITLE );
     if ( !IsWindowReady() ) { return; }
 
@@ -167,6 +233,5 @@ void creerGUI( const Graphe *gph )
     SetTargetFPS( TARGET_FPS );
 
     GrapheGUI *graphe = creerGrapheVirtuel( gph );
-
     activerGUI(graphe);
 }
