@@ -171,11 +171,11 @@ void dessinerFleche( Fleche *fleche )
 
 Noeud* testDeCollisions( const GrapheGUI *graphe )
 {
-    Vector2 mousePos;
-    for (int i = 0; i < graphe->nbNoeuds; i++)
+    Vector2 mousePos = GetMousePosition();
+
+    for (int i = graphe->nbNoeuds - 1; i >= 0; i--)
     {
-        mousePos = GetMousePosition();
-        if ( CheckCollisionPointCircle( mousePos, graphe->noeuds[i]->position, graphe->noeuds[i]->cercle->rayon ) )
+        if ( CheckCollisionPointCircle(mousePos, graphe->noeuds[i]->position, graphe->noeuds[i]->cercle->rayon) )
         {
             return graphe->noeuds[i];
         }
@@ -217,39 +217,37 @@ void activerGUI( const GrapheGUI *graphe )
 {
     Noeud* selection = NULL;
 
-    while ( !WindowShouldClose() )
+    while (!WindowShouldClose())
     {
         BeginDrawing();
-        PollInputEvents();
-        ClearBackground( LIGHTGRAY );
+        ClearBackground(LIGHTGRAY);
         DrawFPS(10, 10);
-        simulation( graphe );
 
-        if ( IsMouseButtonReleased( MOUSE_LEFT_BUTTON ) )
+        if ( IsMouseButtonPressed(MOUSE_LEFT_BUTTON) )
+        {
+            selection = testDeCollisions(graphe);
+        }
+
+        if ( IsMouseButtonDown(MOUSE_LEFT_BUTTON) && selection != NULL )
+        {
+            selection->position = GetMousePosition();
+        }
+
+        if ( IsMouseButtonReleased(MOUSE_LEFT_BUTTON) )
         {
             selection = NULL;
         }
 
-        if ( IsMouseButtonDown( MOUSE_LEFT_BUTTON ) )
-        {
-            if ( selection == NULL )
-            {
-                selection = testDeCollisions( graphe );
-            }
-            else
-            {
-                selection->position = GetMousePosition();
-            }
-        }
+        simulation(graphe);
 
         for (int i = 0; i < graphe->nbFleches; i++)
         {
-            dessinerFleche( graphe->fleches[i] );
+            dessinerFleche(graphe->fleches[i]);
         }
 
         for (int i = 0; i < graphe->nbNoeuds; i++)
         {
-            dessinerNoeud( graphe->noeuds[i] );
+            dessinerNoeud(graphe->noeuds[i]);
         }
 
         EndDrawing();
@@ -260,7 +258,7 @@ void activerGUI( const GrapheGUI *graphe )
 
 void creerGUI( const Graphe *gph )
 {
-    // SetConfigFlags( FLAG_MSAA_4X_HINT );
+    SetConfigFlags( FLAG_MSAA_4X_HINT );
 
     InitWindow( WIDTH, HEIGHT, TITLE );
     if ( !IsWindowReady() ) { return; }
