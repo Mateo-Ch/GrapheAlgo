@@ -25,7 +25,6 @@ int* genererTableauCouts( Graphe *graphe, Sommet *source )
     return d;
 }
 
-// ATTENTION C'EST FULL CHATGPT PSK IL EST TARD (a revoir)
 
 /*
  * Algorithme de Bellman-Ford.
