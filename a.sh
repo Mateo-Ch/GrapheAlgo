@@ -1,0 +1,1 @@
+make &&  ./bin/graphe ./res/graphe.gph

@@ -158,7 +158,13 @@ void dessinerFleche( Fleche *fleche )
     float offsetBase = fleche->arrive->cercle->rayon + 15.0f; // rayon + longueurTete
     Vector2 ligneFin = Vector2Subtract(end, Vector2Scale(dir, offsetBase));
 
+    //écrire le cout de l'arc au milieu de la ligne
+    Vector2 midPoint = Vector2Scale(Vector2Add(start, ligneFin), 0.5f);
+    int largeurTexte = MeasureText(fleche->texte, TAILLE_POLICE);
     DrawLineEx( start, ligneFin, EPAISSEUR_FLECHES, BLACK );
+    DrawRectangle((int)(midPoint.x - largeurTexte / 2.0f) - 5, (int)(midPoint.y - TAILLE_POLICE / 2.0f) - 5, largeurTexte + 10, TAILLE_POLICE + 10, LIGHTGRAY);
+    DrawText(fleche->texte, (int)(midPoint.x - largeurTexte / 2.0f), (int)(midPoint.y - TAILLE_POLICE / 2.0f), TAILLE_POLICE, BLACK );
+
     dessinerTeteFleche( fleche );
 }
 
