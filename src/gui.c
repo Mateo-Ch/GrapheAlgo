@@ -9,10 +9,10 @@
 #define TITLE "Solveur de graphe"
 
 #define WIDTH 1280
-#define MIN_WIDTH 640
+#define MIN_WIDTH 320
 
 #define HEIGHT 960
-#define MIN_HEIGHT 480
+#define MIN_HEIGHT 240
 
 #define TARGET_FPS 60
 
@@ -123,7 +123,6 @@ void dessinerTeteFleche(Fleche *fleche)
     float largeurTete  = 8.0f;   
     float rayonNoeud   = fleche->arrive->cercle->rayon;
 
-    // 1. Direction normalisée
     Vector2 dir = Vector2Subtract(end, start);
     float distance = Vector2Length(dir);
     
@@ -170,18 +169,18 @@ void dessinerFleche( Fleche *fleche )
 
 // SIMULATION
 
-void testDeCollisions( const GrapheGUI *graphe )
+Noeud* testDeCollisions( const GrapheGUI *graphe )
 {
     Vector2 mousePos;
     for (int i = 0; i < graphe->nbNoeuds; i++)
     {
         mousePos = GetMousePosition();
-        if ( CheckCollisionPointCircle( mousePos, graphe->noeuds[i]->position, graphe->noeuds[i]->cercle->rayon ) && IsMouseButtonDown(MOUSE_LEFT_BUTTON) )
+        if ( CheckCollisionPointCircle( mousePos, graphe->noeuds[i]->position, graphe->noeuds[i]->cercle->rayon ) )
         {
-            graphe->noeuds[i]->position = mousePos;
-            return;
+            return graphe->noeuds[i];
         }
     }
+    return NULL;
 }
 
 void simulation( const GrapheGUI *graphe )
@@ -216,6 +215,8 @@ void freeGUI()
 
 void activerGUI( const GrapheGUI *graphe )
 {
+    Noeud* selection = NULL;
+
     while ( !WindowShouldClose() )
     {
         BeginDrawing();
@@ -223,8 +224,24 @@ void activerGUI( const GrapheGUI *graphe )
         ClearBackground( LIGHTGRAY );
 
         simulation( graphe );
-        testDeCollisions( graphe );
-        
+
+        if ( IsMouseButtonReleased( MOUSE_LEFT_BUTTON ) )
+        {
+            selection = NULL;
+        }
+
+        if ( IsMouseButtonDown( MOUSE_LEFT_BUTTON ) )
+        {
+            if ( selection == NULL )
+            {
+                selection = testDeCollisions( graphe );
+            }
+            else
+            {
+                selection->position = GetMousePosition();
+            }
+        }
+
         for (int i = 0; i < graphe->nbFleches; i++)
         {
             dessinerFleche( graphe->fleches[i] );
