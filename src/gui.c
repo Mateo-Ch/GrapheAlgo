@@ -222,7 +222,7 @@ void activerGUI( const GrapheGUI *graphe )
         BeginDrawing();
         PollInputEvents();
         ClearBackground( LIGHTGRAY );
-
+        DrawFPS(10, 10);
         simulation( graphe );
 
         if ( IsMouseButtonReleased( MOUSE_LEFT_BUTTON ) )
