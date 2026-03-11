@@ -17,13 +17,11 @@
 #define TARGET_FPS 60
 
 #define TAILLE_POLICE 20
-
+#define EPAISSEUR_FLECHES 3.0f
 #define RAYON_PAR_DEFAUT 25.0f
 
-#define EPAISSEUR_FLECHES 3.0f
-
+#define FORCE_REPULSION 300.0f
 #define DISTANCE_NOEUD 250.0f
-
 #define K 0.03f
 
 // GRAPHE
@@ -47,7 +45,6 @@ Noeud* sommetToNoeud( const Sommet *sommet )
 
     noeud->texte = strdup( sommet->nom );
     noeud->position = (Vector2) {GetRandomValue(100, 1000), GetRandomValue(100, 1000)}; // j'ai pas mieux { 0, 0 } marche pas
-    noeud->velocite = Vector2Zero();
     
     noeud->cercle->couleur = WHITE;
     noeud->cercle->rayon = RAYON_PAR_DEFAUT;
@@ -183,26 +180,107 @@ Noeud* testDeCollisions( const GrapheGUI *graphe )
     return NULL;
 }
 
-void simulation( const GrapheGUI *graphe )
+/* void simulation( const GrapheGUI *graphe )
 {
-    for (int i = 0; i < graphe->nbNoeuds; i++)
+    for(int i = 0; i < graphe->nbNoeuds; i++)
     {
-        for (int j = 0; j < graphe->nbNoeuds; j++)
+        for(int j = 0; j < graphe->nbNoeuds; j++)
         {
-            if (i == j) continue;
+            if ( i == j ) { continue; }
+
             Noeud *noeudDepart = graphe->noeuds[i];
             Noeud *noeudArrive = graphe->noeuds[j];
-    
-            Vector2 vDirection = Vector2Subtract(noeudDepart->position, noeudArrive->position);
-            float vDirLength = Vector2Length( vDirection ) - DISTANCE_NOEUD;
-            Vector2 force = Vector2Normalize( vDirection );
-            force = Vector2Scale( force, -K * vDirLength );
 
-            noeudDepart->position = Vector2Add( noeudDepart->position, force );
+            Vector2 vDirection = Vector2Subtract(noeudDepart->position, noeudArrive->position);
+            float distance = Vector2Length( vDirection );
+            if (distance > 0 && distance < DISTANCE_NOEUD)
+            {
+                Vector2 direction = Vector2Normalize(vDirection);
+                float k = FORCE_REPULSION / distance;
+                Vector2 force = Vector2Scale(direction, k);
+                noeudDepart->position = Vector2Add(noeudDepart->position, force);
+            }
 
             noeudDepart->position.x = Clamp(noeudDepart->position.x, RAYON_PAR_DEFAUT, GetScreenWidth() - RAYON_PAR_DEFAUT);
             noeudDepart->position.y = Clamp(noeudDepart->position.y, RAYON_PAR_DEFAUT, GetScreenHeight() - RAYON_PAR_DEFAUT);
         }
+    }
+
+    for (int i = 0; i < graphe->nbFleches; i++)
+    {
+        Noeud *noeudDepart = graphe->fleches[i]->depart;
+        Noeud *noeudArrive = graphe->fleches[i]->arrive;
+
+        Vector2 vDirection = Vector2Subtract(noeudDepart->position, noeudArrive->position);
+        float vDirLength = Vector2Length( vDirection ) - DISTANCE_NOEUD;
+        Vector2 force = Vector2Normalize( vDirection );
+        force = Vector2Scale( force, -K * vDirLength );
+
+        noeudDepart->position = Vector2Add( noeudDepart->position, force );
+
+        noeudDepart->position.x = Clamp(noeudDepart->position.x, RAYON_PAR_DEFAUT, GetScreenWidth() - RAYON_PAR_DEFAUT);
+        noeudDepart->position.y = Clamp(noeudDepart->position.y, RAYON_PAR_DEFAUT, GetScreenHeight() - RAYON_PAR_DEFAUT);
+    }
+} */
+
+void simulation(const GrapheGUI *graphe)
+{
+    // --- REPULSION BETWEEN ALL NODES ---
+    for (int i = 0; i < graphe->nbNoeuds; i++)
+    {
+        for (int j = i + 1; j < graphe->nbNoeuds; j++)
+        {
+            Noeud *a = graphe->noeuds[i];
+            Noeud *b = graphe->noeuds[j];
+
+            Vector2 v = Vector2Subtract(a->position, b->position);
+            float distance = Vector2Length(v);
+
+            if (distance > 0 && distance < DISTANCE_NOEUD)
+            {
+                Vector2 dir = Vector2Normalize(v);
+                float k = FORCE_REPULSION / distance;
+
+                Vector2 force = Vector2Scale(dir, k);
+
+                a->position = Vector2Add(a->position, force);
+                b->position = Vector2Subtract(b->position, force);
+            }
+        }
+    }
+
+    // --- ATTRACTION ALONG EDGES ---
+    for (int i = 0; i < graphe->nbFleches; i++)
+    {
+        Noeud *a = graphe->fleches[i]->depart;
+        Noeud *b = graphe->fleches[i]->arrive;
+
+        Vector2 v = Vector2Subtract(a->position, b->position);
+        float length = Vector2Length(v);
+
+        if (length == 0) continue;
+
+        float delta = length - DISTANCE_NOEUD;
+
+        Vector2 force = Vector2Normalize(v);
+        force = Vector2Scale(force, -K * delta);
+
+        a->position = Vector2Add(a->position, force);
+        b->position = Vector2Subtract(b->position, force);
+    }
+
+    // --- CLAMP POSITIONS (once per node) ---
+    for (int i = 0; i < graphe->nbNoeuds; i++)
+    {
+        Noeud *n = graphe->noeuds[i];
+
+        n->position.x = Clamp(n->position.x,
+                              RAYON_PAR_DEFAUT,
+                              GetScreenWidth() - RAYON_PAR_DEFAUT);
+
+        n->position.y = Clamp(n->position.y,
+                              RAYON_PAR_DEFAUT,
+                              GetScreenHeight() - RAYON_PAR_DEFAUT);
     }
 }
 

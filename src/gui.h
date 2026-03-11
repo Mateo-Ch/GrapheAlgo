@@ -14,7 +14,6 @@ typedef struct
 {
     Cercle *cercle;
     Vector2 position;
-    Vector2 velocite;
     char *texte;
 } Noeud;
 
