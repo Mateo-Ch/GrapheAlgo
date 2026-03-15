@@ -2,24 +2,23 @@
 #include <stdlib.h>
 
 #include "graphe.h"
-#include "solveur.h"
 #include "gui.h"
 
-int main( int argc, char *argv[] )
+int main(int argc, char *argv[])
 {
-    if ( argc != 2 ) { return -1; }
-    
-    char *texte = getContenuFichier( argv[1] );
-    if ( texte == NULL ) { return -1; }
-    
-    Graphe *graphe = creerGraphe( texte );
-    // Sommet *source = trouverSommet( graphe, "A" );
+    if (argc != 2) {
+        fprintf(stderr, "Usage : %s <fichier_graphe>\n", argv[0]);
+        return 1;
+    }
 
-    // ptet trouver de meilleurs nom poru les fonctions heinnnn
+    char *texte = lireFichier(argv[1]);
+    if (!texte) return 1;
+
+    Graphe *graphe = creerGraphe(texte);
+    free(texte);
+
     creerGUI(graphe);
 
-    free(texte);
     detruireGraphe(graphe);
-    
     return 0;
 }

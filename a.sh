@@ -1,1 +1,1 @@
-make &&  ./bin/graphe ./res/graphe.gph
+make && ./bin/graphe ./res/graphe.gph

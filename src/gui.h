@@ -1,45 +1,40 @@
-#ifndef _GUI_H_
-#define _GUI_H_
+#ifndef GUI_H
+#define GUI_H
 
 #include "raylib.h"
 #include "graphe.h"
 
-typedef struct
-{
-    Color couleur;
-    float rayon;
+typedef struct {
+    Color  couleur;
+    float  rayon;
 } Cercle;
 
-typedef struct
-{
-    Cercle *cercle;
-    Vector2 position;
-    char *texte;
+typedef struct {
+    Cercle  *cercle;
+    Vector2  position;
+    char    *texte;
 } Noeud;
 
-typedef struct // J'ai pas mis d'épaisseur
-{
-    Noeud *depart;
-    Noeud *arrive;
-    Color couleur;
-    char *texte;
+typedef struct {
+    Noeud  *depart;
+    Noeud  *arrivee;
+    Color   couleur;
+    char   *texte;
 } Fleche;
 
-typedef struct
-{
-    int nbNoeuds;
-    int nbFleches;
-
-    Noeud **noeuds;
+typedef struct {
+    int      nbNoeuds;
+    int      nbFleches;
+    Noeud  **noeuds;
     Fleche **fleches;
 } GrapheGUI;
 
 typedef struct {
-    Rectangle rect;
+    Rectangle   rect;
     const char *label;
-    Color color;
+    Color       couleur;
 } Bouton;
 
-void creerGUI( Graphe *gph );
+void creerGUI(Graphe *graphe);
 
 #endif

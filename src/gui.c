@@ -1,390 +1,339 @@
 #define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <limits.h>
+
+#include "raylib.h"
+#include "raymath.h"
 #include "gui.h"
 #include "solveur.h"
 
-#include "stdio.h"
-#include "stdlib.h"
-#include "string.h"
-#include "raymath.h"
+/* ---------- Constantes ---------- */
 
-#define TITLE "Solveur de graphe"
+#define TITRE             "Solveur de graphe"
+#define LARGEUR           1280
+#define HAUTEUR           960
+#define LARGEUR_MIN       320
+#define HAUTEUR_MIN       240
+#define FPS_CIBLE         60
 
-#define WIDTH 1280
-#define MIN_WIDTH 320
+#define POLICE_TAILLE     20
+#define FLECHE_EPAISSEUR  3.0f
+#define NOEUD_RAYON       25.0f
 
-#define HEIGHT 960
-#define MIN_HEIGHT 240
+#define SIM_REPULSION     5000.0f
+#define SIM_DISTANCE      120.0f
+#define SIM_RESSORT       0.01f
+#define SIM_AMORTISSEMENT 0.9f
 
-#define TARGET_FPS 60
+/* ---------- Conversion graphe → GUI ---------- */
 
-#define TAILLE_POLICE 20
-#define EPAISSEUR_FLECHES 3.0f
-#define RAYON_PAR_DEFAUT 25.0f
-
-#define FORCE_REPULSION 80.0f
-#define DISTANCE_NOEUD 250.0f
-#define K 0.03f
-#define DAMPING 0.15f
-
-// GRAPHE
-
-Noeud* trouverNoeud( char *nom, const GrapheGUI* graphe )
+static Noeud *trouverNoeud(const GrapheGUI *g, const char *nom)
 {
-    for (int i = 0; i < graphe->nbNoeuds; i++)
-    {
-        if ( strcmp(nom, graphe->noeuds[i]->texte) == 0 )
-        {
-            return graphe->noeuds[i];
-        }
-    }
+    for (int i = 0; i < g->nbNoeuds; i++)
+        if (strcmp(g->noeuds[i]->texte, nom) == 0)
+            return g->noeuds[i];
     return NULL;
 }
 
-Noeud* sommetToNoeud( const Sommet *sommet )
+static Noeud *sommetVersNoeud(const Sommet *sommet)
 {
-    Noeud *noeud  = (Noeud* ) malloc( sizeof( Noeud  ) );
-    noeud->cercle = (Cercle*) malloc( sizeof( Cercle ) );
+    Noeud  *n = malloc(sizeof(Noeud));
+    Cercle *c = malloc(sizeof(Cercle));
 
-    noeud->texte = strdup( sommet->nom );
-    noeud->position = (Vector2) {GetRandomValue(100, 1000), GetRandomValue(100, 1000)}; // j'ai pas mieux { 0, 0 } marche pas
-    
-    noeud->cercle->couleur = WHITE;
-    noeud->cercle->rayon = RAYON_PAR_DEFAUT;
-
-    return noeud;
+    n->texte    = strdup(sommet->nom);
+    n->position = (Vector2){ GetRandomValue(100, 1000), GetRandomValue(100, 1000) };
+    c->couleur  = WHITE;
+    c->rayon    = NOEUD_RAYON;
+    n->cercle   = c;
+    return n;
 }
 
-Fleche* arcToFleche(const Arc *arc, const GrapheGUI *graphe)
+static Fleche *arcVersFleche(const Arc *arc, const GrapheGUI *g)
 {
-    Fleche *fleche = (Fleche*) malloc(sizeof(Fleche));
+    Noeud *dep = trouverNoeud(g, arc->depart->nom);
+    Noeud *arr = trouverNoeud(g, arc->arrivee->nom);
+    if (!dep || !arr) return NULL;
 
-    int len = snprintf(NULL, 0, "%d", arc->cout);
-    
-    fleche->texte = (char*) malloc(len + 1);
-
-    if ( fleche->texte )
-    {
-        snprintf(fleche->texte, len + 1, "%d", arc->cout);
-    }
-
-    fleche->depart = trouverNoeud(arc->sDep->nom, graphe);
-    fleche->arrive = trouverNoeud(arc->sArr->nom, graphe);
-
-    if ( !fleche->depart || !fleche->arrive )
-    {
-        free(fleche->texte);
-        free(fleche);
-        return NULL;
-    }
-
-    fleche->couleur = BLACK;
-
-    return fleche;
+    Fleche *f = malloc(sizeof(Fleche));
+    int len   = snprintf(NULL, 0, "%d", arc->cout);
+    f->texte  = malloc(len + 1);
+    snprintf(f->texte, len + 1, "%d", arc->cout);
+    f->depart  = dep;
+    f->arrivee = arr;
+    f->couleur = BLACK;
+    return f;
 }
 
-GrapheGUI* creerGrapheVirtuel( const Graphe *graphe )
+static GrapheGUI *creerGrapheGUI(const Graphe *g)
 {
-    GrapheGUI *grapheGUI = (GrapheGUI*) malloc(sizeof(GrapheGUI));
+    GrapheGUI *gui = malloc(sizeof(GrapheGUI));
+    gui->nbNoeuds  = g->nbSommets;
+    gui->nbFleches = g->nbArcs;
+    gui->noeuds    = malloc(g->nbSommets * sizeof(Noeud *));
+    gui->fleches   = malloc(g->nbArcs    * sizeof(Fleche *));
 
-    grapheGUI->nbNoeuds = graphe->nbElements;
-    grapheGUI->nbFleches = graphe->nbArcs;
+    for (int i = 0; i < g->nbSommets; i++)
+        gui->noeuds[i] = sommetVersNoeud(g->sommets[i]);
 
-    grapheGUI->noeuds  = (Noeud**) malloc(graphe->nbElements * sizeof(Noeud*));
-    grapheGUI->fleches = (Fleche**) malloc(graphe->nbArcs * sizeof(Fleche*));
+    for (int i = 0; i < g->nbArcs; i++)
+        gui->fleches[i] = arcVersFleche(g->arcs[i], gui);
 
-    for (int i = 0; i < graphe->nbElements; i++) { grapheGUI->noeuds[i] = sommetToNoeud( graphe->sommets[i] ); }
-    for (int i = 0; i < graphe->nbArcs; i++) { grapheGUI->fleches[i] = arcToFleche( graphe->arcs[i], grapheGUI ); }
-
-    return grapheGUI;
+    return gui;
 }
 
-// RENDU
+/* ---------- Coloration du chemin ---------- */
 
-void dessinerNoeud( Noeud *noeud )
+/* Remet toutes les flèches en noir, puis colorie en rouge
+   les arcs appartenant à l'arbre des plus courts chemins. */
+static void colorierChemins(GrapheGUI *gui, const Graphe *g, const Resultat *r)
 {
-    DrawCircleV( noeud->position, noeud->cercle->rayon, noeud->cercle->couleur );
-    DrawCircleLinesV( noeud->position, noeud->cercle->rayon, BLACK );
+    for (int i = 0; i < gui->nbFleches; i++)
+        gui->fleches[i]->couleur = BLACK;
 
-    int largeurTexte = MeasureText(noeud->texte, TAILLE_POLICE);
+    if (!r) return;
 
-    float posX = noeud->position.x - (largeurTexte / 2.0f);
-    float posY = noeud->position.y - (TAILLE_POLICE / 2.0f);
+    for (int v = 0; v < g->nbSommets; v++) {
+        if (r->pred[v] == -1) continue;
+        const char *nomDep = g->sommets[r->pred[v]]->nom;
+        const char *nomArr = g->sommets[v]->nom;
 
-    DrawText( noeud->texte, (int)posX, (int)posY, TAILLE_POLICE, BLACK );
-}
-
-void dessinerTeteFleche(Fleche *fleche)
-{
-    Vector2 start = fleche->depart->position;
-    Vector2 end   = fleche->arrive->position;
-
-    float longueurTete = 15.0f;   
-    float largeurTete  = 8.0f;   
-    float rayonNoeud   = fleche->arrive->cercle->rayon;
-
-    Vector2 dir = Vector2Subtract(end, start);
-    float distance = Vector2Length(dir);
-    
-    // Sécurité pour éviter la division par zéro si les nœuds sont superposés
-    if (distance > 0) dir = Vector2Scale(dir, 1.0f / distance);
-    else return;
-
-    // 2. Calculer la pointe (p1) au bord du cercle de destination
-    Vector2 p1 = Vector2Subtract(end, Vector2Scale(dir, rayonNoeud));
-
-    // 3. Vecteur perpendiculaire pour la largeur
-    Vector2 perp = (Vector2){ -dir.y, dir.x };
-
-    // 4. Base du triangle (en arrière de la pointe p1)
-    Vector2 base = Vector2Subtract(p1, Vector2Scale(dir, longueurTete));
-
-    // 5. Coins de la base
-    Vector2 p2 = Vector2Add(base, Vector2Scale(perp, largeurTete));
-    Vector2 p3 = Vector2Subtract(base, Vector2Scale(perp, largeurTete));
-
-    // IMPORTANT : L'ordre p1, p3, p2 assure souvent un meilleur rendu (Sens anti-horaire)
-    DrawTriangle(p1, p3, p2, BLACK);
-}
-
-void dessinerFleche( Fleche *fleche )
-{
-    Vector2 start = fleche->depart->position;
-    Vector2 end   = fleche->arrive->position;
-    Vector2 dir   = Vector2Normalize(Vector2Subtract(end, start));
-    
-    // On arrête la ligne là où la tête de flèche commence (base)
-    float offsetBase = fleche->arrive->cercle->rayon + 15.0f; // rayon + longueurTete
-    Vector2 ligneFin = Vector2Subtract(end, Vector2Scale(dir, offsetBase));
-
-    //écrire le cout de l'arc au milieu de la ligne
-    Vector2 midPoint = Vector2Scale(Vector2Add(start, ligneFin), 0.5f);
-    int largeurTexte = MeasureText(fleche->texte, TAILLE_POLICE);
-    DrawLineEx( start, ligneFin, EPAISSEUR_FLECHES, BLACK );
-    DrawRectangle((int)(midPoint.x - largeurTexte / 2.0f) - 5, (int)(midPoint.y - TAILLE_POLICE / 2.0f) - 5, largeurTexte + 10, TAILLE_POLICE + 10, LIGHTGRAY);
-    DrawText(fleche->texte, (int)(midPoint.x - largeurTexte / 2.0f), (int)(midPoint.y - TAILLE_POLICE / 2.0f), TAILLE_POLICE, BLACK );
-
-    dessinerTeteFleche( fleche );
-}
-
-// SIMULATION
-
-Noeud* testDeCollisions( const GrapheGUI *graphe )
-{
-    Vector2 mousePos = GetMousePosition();
-
-    for (int i = graphe->nbNoeuds - 1; i >= 0; i--)
-    {
-        if ( CheckCollisionPointCircle(mousePos, graphe->noeuds[i]->position, graphe->noeuds[i]->cercle->rayon) )
-        {
-            return graphe->noeuds[i];
-        }
-    }
-    return NULL;
-}
-
-/* void simulation( const GrapheGUI *graphe )
-{
-    for(int i = 0; i < graphe->nbNoeuds; i++)
-    {
-        for(int j = 0; j < graphe->nbNoeuds; j++)
-        {
-            if ( i == j ) { continue; }
-
-            Noeud *noeudDepart = graphe->noeuds[i];
-            Noeud *noeudArrive = graphe->noeuds[j];
-
-            Vector2 vDirection = Vector2Subtract(noeudDepart->position, noeudArrive->position);
-            float distance = Vector2Length( vDirection );
-            if (distance > 0 && distance < DISTANCE_NOEUD)
-            {
-                Vector2 direction = Vector2Normalize(vDirection);
-                float k = FORCE_REPULSION / distance;
-                Vector2 force = Vector2Scale(direction, k);
-                noeudDepart->position = Vector2Add(noeudDepart->position, force);
+        for (int i = 0; i < gui->nbFleches; i++) {
+            Fleche *f = gui->fleches[i];
+            if (strcmp(f->depart->texte, nomDep) == 0 &&
+                strcmp(f->arrivee->texte, nomArr) == 0) {
+                f->couleur = RED;
+                break;
             }
-
-            noeudDepart->position.x = Clamp(noeudDepart->position.x, RAYON_PAR_DEFAUT, GetScreenWidth() - RAYON_PAR_DEFAUT);
-            noeudDepart->position.y = Clamp(noeudDepart->position.y, RAYON_PAR_DEFAUT, GetScreenHeight() - RAYON_PAR_DEFAUT);
         }
     }
+}
 
-    for (int i = 0; i < graphe->nbFleches; i++)
-    {
-        Noeud *noeudDepart = graphe->fleches[i]->depart;
-        Noeud *noeudArrive = graphe->fleches[i]->arrive;
+/* ---------- Rendu ---------- */
 
-        Vector2 vDirection = Vector2Subtract(noeudDepart->position, noeudArrive->position);
-        float vDirLength = Vector2Length( vDirection ) - DISTANCE_NOEUD;
-        Vector2 force = Vector2Normalize( vDirection );
-        force = Vector2Scale( force, -K * vDirLength );
-
-        noeudDepart->position = Vector2Add( noeudDepart->position, force );
-
-        noeudDepart->position.x = Clamp(noeudDepart->position.x, RAYON_PAR_DEFAUT, GetScreenWidth() - RAYON_PAR_DEFAUT);
-        noeudDepart->position.y = Clamp(noeudDepart->position.y, RAYON_PAR_DEFAUT, GetScreenHeight() - RAYON_PAR_DEFAUT);
-    }
-} */
-
-void simulation(const GrapheGUI *graphe)
+static void dessinerNoeud(const Noeud *n)
 {
-    // --- REPULSION BETWEEN ALL NODES ---
-    for (int i = 0; i < graphe->nbNoeuds; i++)
-    {
-        for (int j = i + 1; j < graphe->nbNoeuds; j++)
-        {
-            Noeud *a = graphe->noeuds[i];
-            Noeud *b = graphe->noeuds[j];
+    DrawCircleV(n->position, n->cercle->rayon, n->cercle->couleur);
+    DrawCircleLinesV(n->position, n->cercle->rayon, BLACK);
 
+    int larg = MeasureText(n->texte, POLICE_TAILLE);
+    DrawText(n->texte,
+             (int)(n->position.x - larg / 2.0f),
+             (int)(n->position.y - POLICE_TAILLE / 2.0f),
+             POLICE_TAILLE, BLACK);
+}
+
+static void dessinerTete(const Fleche *f)
+{
+    Vector2 dir = Vector2Subtract(f->arrivee->position, f->depart->position);
+    float dist  = Vector2Length(dir);
+    if (dist == 0) return;
+    dir = Vector2Scale(dir, 1.0f / dist);
+
+    float longueur = 15.0f, largeur = 8.0f;
+    Vector2 pointe = Vector2Subtract(f->arrivee->position,
+                                     Vector2Scale(dir, f->arrivee->cercle->rayon));
+    Vector2 base   = Vector2Subtract(pointe, Vector2Scale(dir, longueur));
+    Vector2 perp   = (Vector2){ -dir.y, dir.x };
+
+    DrawTriangle(pointe,
+                 Vector2Subtract(base, Vector2Scale(perp, largeur)),
+                 Vector2Add(base, Vector2Scale(perp, largeur)),
+                 f->couleur);
+}
+
+static void dessinerFleche(const Fleche *f)
+{
+    Vector2 dir = Vector2Normalize(Vector2Subtract(f->arrivee->position, f->depart->position));
+    Vector2 fin = Vector2Subtract(f->arrivee->position,
+                                  Vector2Scale(dir, f->arrivee->cercle->rayon + 15.0f));
+
+    DrawLineEx(f->depart->position, fin, FLECHE_EPAISSEUR, f->couleur);
+
+    /* Étiquette au milieu */
+    Vector2 milieu = Vector2Scale(Vector2Add(f->depart->position, fin), 0.5f);
+    int larg = MeasureText(f->texte, POLICE_TAILLE);
+    DrawRectangle((int)(milieu.x - larg / 2.0f) - 5,
+                  (int)(milieu.y - POLICE_TAILLE / 2.0f) - 5,
+                  larg + 10, POLICE_TAILLE + 10, LIGHTGRAY);
+    DrawText(f->texte,
+             (int)(milieu.x - larg / 2.0f),
+             (int)(milieu.y - POLICE_TAILLE / 2.0f),
+             POLICE_TAILLE, BLACK);
+
+    dessinerTete(f);
+}
+
+/* Panneau des distances affiché en bas à droite. */
+static void dessinerPanneauResultats(const Graphe *g, const Resultat *r, const char *algo)
+{
+    if (!r) return;
+
+    const int ligneH  = 22;
+    const int padding = 10;
+    const int largeur = 200;
+    int hauteur       = padding * 2 + 20 + g->nbSommets * ligneH;
+    int x             = GetScreenWidth()  - largeur - padding;
+    int y             = GetScreenHeight() - hauteur  - padding;
+
+    DrawRectangle(x, y, largeur, hauteur, Fade(BLACK, 0.70f));
+    DrawRectangleLinesEx((Rectangle){ x, y, largeur, hauteur }, 1, GRAY);
+
+    DrawText(algo, x + padding, y + padding, 18, YELLOW);
+
+    for (int i = 0; i < g->nbSommets; i++) {
+        char ligne[64];
+        if (r->distances[i] == INT_MAX)
+            snprintf(ligne, sizeof(ligne), "%-8s : inf", g->sommets[i]->nom);
+        else
+            snprintf(ligne, sizeof(ligne), "%-8s : %d",  g->sommets[i]->nom, r->distances[i]);
+
+        Color couleur = (r->pred[i] != -1 || r->distances[i] == 0) ? RED : WHITE;
+        DrawText(ligne, x + padding, y + padding + 20 + i * ligneH, 18, couleur);
+    }
+}
+
+/* ---------- Simulation de forces ---------- */
+
+static void simuler(const GrapheGUI *g)
+{
+    /* Répulsion entre tous les nœuds */
+    for (int i = 0; i < g->nbNoeuds; i++) {
+        for (int j = i + 1; j < g->nbNoeuds; j++) {
+            Noeud *a = g->noeuds[i];
+            Noeud *b = g->noeuds[j];
             Vector2 v = Vector2Subtract(a->position, b->position);
-            float distance = Vector2Length(v);
-
-            if (distance > 0 && distance < DISTANCE_NOEUD)
-            {
-                Vector2 dir = Vector2Normalize(v);
-                float k = FORCE_REPULSION / distance;
-
-                Vector2 force = Vector2Scale(dir, k * DAMPING);
-
-                a->position = Vector2Add(a->position, force);
-                b->position = Vector2Subtract(b->position, force);
-            }
+            float dist = Vector2Length(v);
+            if (dist < 1.0f) dist = 1.0f;
+            Vector2 force = Vector2Scale(Vector2Normalize(v),
+                                         SIM_REPULSION / (dist * dist));
+            a->position = Vector2Add(a->position, force);
+            b->position = Vector2Subtract(b->position, force);
         }
     }
 
-    // --- ATTRACTION ALONG EDGES ---
-    for (int i = 0; i < graphe->nbFleches; i++)
-    {
-        Noeud *a = graphe->fleches[i]->depart;
-        Noeud *b = graphe->fleches[i]->arrive;
-
+    /* Attraction le long des arcs */
+    for (int i = 0; i < g->nbFleches; i++) {
+        Noeud *a = g->fleches[i]->depart;
+        Noeud *b = g->fleches[i]->arrivee;
         Vector2 v = Vector2Subtract(a->position, b->position);
-        float length = Vector2Length(v);
-
-        if (length == 0) continue;
-
-        float delta = length - DISTANCE_NOEUD;
-
-        Vector2 force = Vector2Normalize(v);
-        force = Vector2Scale(force, -K * delta * DAMPING);
-
+        float dist = Vector2Length(v);
+        if (dist == 0) continue;
+        Vector2 force = Vector2Scale(Vector2Normalize(v),
+                                     -SIM_RESSORT * (dist - SIM_DISTANCE) * SIM_AMORTISSEMENT);
         a->position = Vector2Add(a->position, force);
         b->position = Vector2Subtract(b->position, force);
     }
 
-    // --- CLAMP POSITIONS (once per node) ---
-    for (int i = 0; i < graphe->nbNoeuds; i++)
-    {
-        Noeud *n = graphe->noeuds[i];
-
-        n->position.x = Clamp(n->position.x,
-                              RAYON_PAR_DEFAUT,
-                              GetScreenWidth() - RAYON_PAR_DEFAUT);
-
-        n->position.y = Clamp(n->position.y,
-                              RAYON_PAR_DEFAUT,
-                              GetScreenHeight() - RAYON_PAR_DEFAUT);
+    /* Garder les nœuds dans la fenêtre */
+    for (int i = 0; i < g->nbNoeuds; i++) {
+        Noeud *n = g->noeuds[i];
+        n->position.x = Clamp(n->position.x, NOEUD_RAYON, GetScreenWidth()  - NOEUD_RAYON);
+        n->position.y = Clamp(n->position.y, NOEUD_RAYON, GetScreenHeight() - NOEUD_RAYON);
     }
 }
 
-bool dessinerBouton(Bouton btn) 
+/* ---------- Interaction ---------- */
+
+static Noeud *noeudSousCurseur(const GrapheGUI *g)
 {
-    Vector2 mousePoint = GetMousePosition();
-    bool hovering = CheckCollisionPointRec(mousePoint, btn.rect);
-    Color drawColor = hovering ? ColorBrightness(btn.color, -0.2f) : btn.color;
+    Vector2 souris = GetMousePosition();
+    for (int i = g->nbNoeuds - 1; i >= 0; i--)
+        if (CheckCollisionPointCircle(souris, g->noeuds[i]->position, g->noeuds[i]->cercle->rayon))
+            return g->noeuds[i];
+    return NULL;
+}
 
-    DrawRectangleRec(btn.rect, drawColor);
-    DrawRectangleLinesEx(btn.rect, 2, DARKGRAY);
+static bool dessinerBouton(Bouton b)
+{
+    Vector2 souris = GetMousePosition();
+    bool survol    = CheckCollisionPointRec(souris, b.rect);
+    Color couleur  = survol ? ColorBrightness(b.couleur, -0.2f) : b.couleur;
 
-    int textWidth = MeasureText(btn.label, 12);
-    DrawText(btn.label, 
-             btn.rect.x + (btn.rect.width - textWidth) / 2, 
-             btn.rect.y + (btn.rect.height - 12) / 2, 
+    DrawRectangleRec(b.rect, couleur);
+    DrawRectangleLinesEx(b.rect, 2, DARKGRAY);
+
+    int larg = MeasureText(b.label, 12);
+    DrawText(b.label,
+             b.rect.x + (b.rect.width  - larg) / 2,
+             b.rect.y + (b.rect.height - 12)   / 2,
              12, WHITE);
 
-    return hovering && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+    return survol && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
 }
 
-// WINDOW
+/* ---------- Boucle principale ---------- */
 
-void freeGUI()
+static void boucle(GrapheGUI *gui, Graphe *graphe)
 {
-    CloseWindow();
-}
+    Noeud    *selection = NULL;
+    Resultat *resultat  = NULL;
+    const char *nomAlgo = NULL;
 
-void activerGUI( const GrapheGUI *graphe, Graphe *gph )
-{
-    Noeud* selection = NULL;
+    Bouton btnDijkstra = { (Rectangle){ 10,  40, 150, 40 }, "Dijkstra (A)",     DARKGREEN  };
+    Bouton btnBellman  = { (Rectangle){ 170, 40, 150, 40 }, "Bellman-Ford (A)", DARKPURPLE };
 
-    Bouton btnLoad = { (Rectangle){ 10, 40, 150, 40 }, "Charger Graphe", DARKBLUE };
-    Bouton btnDijkstra = { (Rectangle){ 170, 40, 150, 40 }, "Dijkstra (A)", DARKGREEN };
-    Bouton btnBellman = { (Rectangle){ 330, 40, 150, 40 }, "Bellman-Ford (A)", DARKPURPLE };
+    while (!WindowShouldClose()) {
 
-    while (!WindowShouldClose())
-    {
+        /* Drag & drop des nœuds */
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            selection = noeudSousCurseur(gui);
+        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && selection)
+            selection->position = GetMousePosition();
+        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
+            selection = NULL;
+
+        simuler(gui);
+
         BeginDrawing();
         ClearBackground(LIGHTGRAY);
         DrawFPS(10, 10);
 
-        if ( IsMouseButtonPressed(MOUSE_LEFT_BUTTON) )
-        {
-            selection = testDeCollisions(graphe);
-        }
-
-        if ( IsMouseButtonDown(MOUSE_LEFT_BUTTON) && selection != NULL )
-        {
-            selection->position = GetMousePosition();
-        }
-
-        if ( IsMouseButtonReleased(MOUSE_LEFT_BUTTON) )
-        {
-            selection = NULL;
-        }
-
-        simulation(graphe);
-
-        for (int i = 0; i < graphe->nbFleches; i++)
-        {
-            dessinerFleche(graphe->fleches[i]);
-        }
-
-        for (int i = 0; i < graphe->nbNoeuds; i++)
-        {
-            dessinerNoeud(graphe->noeuds[i]);
-        }
-
-        if (dessinerBouton(btnLoad)) {
-            // Logique de chargement (ex: recharge graphe.gph par défaut ou via un flag)
-            printf("Bouton Charger cliqué\n");
-        }
+        for (int i = 0; i < gui->nbFleches; i++) dessinerFleche(gui->fleches[i]);
+        for (int i = 0; i < gui->nbNoeuds;  i++) dessinerNoeud(gui->noeuds[i]);
 
         if (dessinerBouton(btnDijkstra)) {
-            Sommet *source = trouverSommet(gph, "A");
-            if (source) dijkstra(gph, source);
+            Sommet *s = trouverSommet(graphe, "A");
+            if (s) {
+                detruireResultat(resultat);
+                resultat = dijkstra(graphe, s);
+                nomAlgo  = "Dijkstra depuis A";
+                colorierChemins(gui, graphe, resultat);
+            }
         }
 
         if (dessinerBouton(btnBellman)) {
-            Sommet *source = trouverSommet(gph, "A");
-            if (source) bellmanFord(gph, source);
+            Sommet *s = trouverSommet(graphe, "A");
+            if (s) {
+                detruireResultat(resultat);
+                resultat = bellmanFord(graphe, s);
+                nomAlgo  = "Bellman-Ford depuis A";
+                colorierChemins(gui, graphe, resultat);
+            }
         }
+
+        dessinerPanneauResultats(graphe, resultat, nomAlgo);
 
         EndDrawing();
     }
 
-    freeGUI();
+    detruireResultat(resultat);
+    CloseWindow();
 }
 
-void creerGUI( Graphe *gph )
+/* ---------- Point d'entrée ---------- */
+
+void creerGUI(Graphe *graphe)
 {
-    SetConfigFlags( FLAG_MSAA_4X_HINT );
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    InitWindow(LARGEUR, HAUTEUR, TITRE);
+    if (!IsWindowReady()) return;
 
-    InitWindow( WIDTH, HEIGHT, TITLE );
-    if ( !IsWindowReady() ) { return; }
+    SetWindowState(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
+    SetWindowMinSize(LARGEUR_MIN, HAUTEUR_MIN);
+    SetTargetFPS(FPS_CIBLE);
 
-    SetWindowState( FLAG_VSYNC_HINT );
-    SetWindowState( FLAG_WINDOW_RESIZABLE );
-    SetWindowMinSize( MIN_WIDTH, MIN_HEIGHT );
-    SetTargetFPS( TARGET_FPS );
-
-    GrapheGUI *graphe = creerGrapheVirtuel( gph );
-    activerGUI(graphe, gph);
+    GrapheGUI *gui = creerGrapheGUI(graphe);
+    boucle(gui, graphe);
 }

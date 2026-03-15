@@ -1,41 +1,38 @@
+#ifndef GRAPHE_H
+#define GRAPHE_H
 
-#ifndef _GRAPHE_H_
-#define _GRAPHE_H_
-
+/* Séparateurs du format de fichier */
 #define SEP_LIGNE       "\n"
 #define SEP_PROPRIETE   ";"
 #define SEP_VOISIN      ","
 #define SEP_VOISIN_COUT ":"
 
-typedef struct
-{
-    char* nom;
+typedef struct {
+    char *nom;
 } Sommet;
 
-typedef struct
-{
-    int cout;
-    Sommet *sDep;
-    Sommet *sArr;
+typedef struct {
+    Sommet *depart;
+    Sommet *arrivee;
+    int     cout;
 } Arc;
 
-typedef struct
-{
-    int nbElements;
-    int nbArcs;
-
+typedef struct {
+    int      nbSommets;
+    int      nbArcs;
     Sommet **sommets;
-    Arc **arcs;
+    Arc    **arcs;
 } Graphe;
 
-Sommet* trouverSommet( Graphe *graphe, char *nom );
+/* Lecture fichier */
+char   *lireFichier(const char *chemin);
 
-int trouverIndexSommet( Graphe *graphe, Sommet *sommet );
+/* Construction */
+Graphe *creerGraphe(const char *texte);
+void    detruireGraphe(Graphe *graphe);
 
-Graphe* creerGraphe( char *txt );
-
-char* getContenuFichier( char* fichier );
-
-void detruireGraphe( Graphe *graphe );
+/* Recherche */
+Sommet *trouverSommet(const Graphe *graphe, const char *nom);
+int     indiceSommet(const Graphe *graphe, const Sommet *sommet);
 
 #endif
