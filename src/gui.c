@@ -20,9 +20,10 @@
 #define EPAISSEUR_FLECHES 3.0f
 #define RAYON_PAR_DEFAUT 25.0f
 
-#define FORCE_REPULSION 300.0f
+#define FORCE_REPULSION 80.0f
 #define DISTANCE_NOEUD 250.0f
 #define K 0.03f
+#define DAMPING 0.15f
 
 // GRAPHE
 
@@ -241,7 +242,7 @@ void simulation(const GrapheGUI *graphe)
                 Vector2 dir = Vector2Normalize(v);
                 float k = FORCE_REPULSION / distance;
 
-                Vector2 force = Vector2Scale(dir, k);
+                Vector2 force = Vector2Scale(dir, k * DAMPING);
 
                 a->position = Vector2Add(a->position, force);
                 b->position = Vector2Subtract(b->position, force);
@@ -263,7 +264,7 @@ void simulation(const GrapheGUI *graphe)
         float delta = length - DISTANCE_NOEUD;
 
         Vector2 force = Vector2Normalize(v);
-        force = Vector2Scale(force, -K * delta);
+        force = Vector2Scale(force, -K * delta * DAMPING);
 
         a->position = Vector2Add(a->position, force);
         b->position = Vector2Subtract(b->position, force);
