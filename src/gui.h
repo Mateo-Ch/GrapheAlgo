@@ -34,6 +34,12 @@ typedef struct
     Fleche **fleches;
 } GrapheGUI;
 
-void creerGUI();
+typedef struct {
+    Rectangle rect;
+    const char *label;
+    Color color;
+} Bouton;
+
+void creerGUI( Graphe *gph );
 
 #endif

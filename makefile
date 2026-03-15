@@ -33,6 +33,7 @@ bin/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	$(RM) $(OBJ) $(TARGET)
+	-del /Q bin\*.o 2>nul
+	-del /Q bin\graphe.exe 2>nul
 
 .PHONY: all clean

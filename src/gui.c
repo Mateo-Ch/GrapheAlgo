@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include "gui.h"
+#include "solveur.h"
 
 #include "stdio.h"
 #include "stdlib.h"
@@ -285,6 +286,24 @@ void simulation(const GrapheGUI *graphe)
     }
 }
 
+bool dessinerBouton(Bouton btn) 
+{
+    Vector2 mousePoint = GetMousePosition();
+    bool hovering = CheckCollisionPointRec(mousePoint, btn.rect);
+    Color drawColor = hovering ? ColorBrightness(btn.color, -0.2f) : btn.color;
+
+    DrawRectangleRec(btn.rect, drawColor);
+    DrawRectangleLinesEx(btn.rect, 2, DARKGRAY);
+
+    int textWidth = MeasureText(btn.label, 12);
+    DrawText(btn.label, 
+             btn.rect.x + (btn.rect.width - textWidth) / 2, 
+             btn.rect.y + (btn.rect.height - 12) / 2, 
+             12, WHITE);
+
+    return hovering && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+}
+
 // WINDOW
 
 void freeGUI()
@@ -292,9 +311,13 @@ void freeGUI()
     CloseWindow();
 }
 
-void activerGUI( const GrapheGUI *graphe )
+void activerGUI( const GrapheGUI *graphe, Graphe *gph )
 {
     Noeud* selection = NULL;
+
+    Bouton btnLoad = { (Rectangle){ 10, 40, 150, 40 }, "Charger Graphe", DARKBLUE };
+    Bouton btnDijkstra = { (Rectangle){ 170, 40, 150, 40 }, "Dijkstra (A)", DARKGREEN };
+    Bouton btnBellman = { (Rectangle){ 330, 40, 150, 40 }, "Bellman-Ford (A)", DARKPURPLE };
 
     while (!WindowShouldClose())
     {
@@ -329,13 +352,28 @@ void activerGUI( const GrapheGUI *graphe )
             dessinerNoeud(graphe->noeuds[i]);
         }
 
+        if (dessinerBouton(btnLoad)) {
+            // Logique de chargement (ex: recharge graphe.gph par défaut ou via un flag)
+            printf("Bouton Charger cliqué\n");
+        }
+
+        if (dessinerBouton(btnDijkstra)) {
+            Sommet *source = trouverSommet(gph, "A");
+            if (source) dijkstra(gph, source);
+        }
+
+        if (dessinerBouton(btnBellman)) {
+            Sommet *source = trouverSommet(gph, "A");
+            if (source) bellmanFord(gph, source);
+        }
+
         EndDrawing();
     }
 
     freeGUI();
 }
 
-void creerGUI( const Graphe *gph )
+void creerGUI( Graphe *gph )
 {
     SetConfigFlags( FLAG_MSAA_4X_HINT );
 
@@ -348,5 +386,5 @@ void creerGUI( const Graphe *gph )
     SetTargetFPS( TARGET_FPS );
 
     GrapheGUI *graphe = creerGrapheVirtuel( gph );
-    activerGUI(graphe);
+    activerGUI(graphe, gph);
 }
